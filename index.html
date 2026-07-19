@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arena ACG - Simulador de Batalha</title>
+    <!-- Tailwind CSS para deixar o visual moderno e dark mode estilo Gamer -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        /* Estilização para a grade manter proporções quadradas perfeitas */
+        .grid-arena {
+            display: grid;
+            grid-template-columns: repeat(15, minmax(0, 1fr));
+            gap: 4px;
+        }
+        .tile {
+            aspect-ratio: 1 / 1;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+
+    <div class="container mx-auto p-6 max-w-6xl">
+        <!-- Cabeçalho -->
+        <header class="flex justify-between items-center border-b border-slate-700 pb-4 mb-6">
+            <div>
+                <h1 class="text-3xl font-black tracking-wider text-amber-500 uppercase">Arena ACG</h1>
+                <p class="text-sm text-slate-400">Guerreiros, Cavaleiros e Arqueiros em combate gerado via WFC</p>
+            </div>
+            <div id="status-jogo" class="px-4 py-2 bg-emerald-950 text-emerald-400 rounded-full text-sm font-bold border border-emerald-700 animate-pulse">
+                Aguardando Início
+            </div>
+        </header>
+
+        <!-- Painel Central -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Coluna Esquerda: Tabuleiro da Arena -->
+            <div class="lg:col-span-2 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-2xl">
+                <h2 class="text-xl font-bold mb-4 text-slate-300 flex items-center gap-2">
+                    🗺️ Mapa Estratégico <span class="text-xs text-slate-500">(10x15)</span>
+                </h2>
+                <!-- A Grade do Jogo será montada aqui via JavaScript -->
+                <div id="arena-grid" class="grid-arena bg-slate-950 p-4 rounded-lg border border-slate-900 shadow-inner"></div>
+                
+                <!-- Botões de Controle -->
+                <div class="flex gap-4 mt-6">
+                    <button onclick="iniciarJogo()" class="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 px-6 rounded-lg transition-all shadow-md active:scale-95 cursor-pointer uppercase tracking-wider text-sm">
+                        ⚔️ Iniciar Nova Batalha
+                    </button>
+                    <button id="btn-rodada" onclick="proximaRodada()" disabled class="flex-1 bg-slate-700 text-slate-400 font-bold py-3 px-6 rounded-lg transition-all shadow-md uppercase tracking-wider text-sm">
+                        🎲 Avançar Turno
+                    </button>
+                </div>
+            </div>
+
+            <!-- Coluna Direita: Painel de Informações e Logs -->
+            <div class="flex flex-col gap-6">
+                <!-- Caixa de Combatentes Vivos -->
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                    <h3 class="font-bold text-slate-300 mb-2 flex items-center gap-2">👥 Legenda dos Clãs</h3>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="bg-slate-900 p-2 rounded border border-slate-700 flex items-center gap-2"><span>🪓</span> <b class="text-red-400">G</b>uerreiro</div>
+                        <div class="bg-slate-900 p-2 rounded border border-slate-700 flex items-center gap-2"><span>⚔️</span> <b class="text-cyan-400">C</b>avaleiro</div>
+                        <div class="bg-slate-900 p-2 rounded border border-slate-700 flex items-center gap-2"><span>🏹</span> <b class="text-emerald-400">A</b>rqueiro</div>
+                        <div class="bg-slate-900 p-2 rounded border border-slate-700 flex items-center gap-2"><span>🧱</span> Barricada</div>
+                    </div>
+                </div>
+
+                <!-- Caixa de Logs em Tempo Real -->
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-1 flex flex-col min-h-[300px]">
+                    <h3 class="font-bold text-slate-300 mb-2 flex items-center gap-2">📜 Pergaminho de Batalha (Logs)</h3>
+                    <div id="logs-box" class="bg-slate-950 p-3 rounded-lg border border-slate-900 font-mono text-xs text-amber-400/90 overflow-y-auto flex-1 h-64 leading-relaxed whitespace-pre-line">
+                        Nenhum combate em andamento. Clique em iniciar para convocar os heróis...
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- JavaScript Mágico que conecta no seu Spring Boot -->
+    <script>
+        const API_URL = "http://localhost:8080/api/arena";
+        const logBox = document.getElementById("logs-box");
+
+        // Transforma os caracteres do Java em Emojis visuais lindos
+        function mapearItem(char) {
+            switch(char) {
+                case 'G': return { emoji: '🪓', bg: 'bg-red-500/20 border-red-500 text-red-400' };
+                case 'C': return { emoji: '⚔️', bg: 'bg-cyan-500/20 border-cyan-500 text-cyan-400' };
+                case 'A': return { emoji: '🏹', bg: 'bg-emerald-500/20 border-emerald-500 text-emerald-400' };
+                case '#': return { emoji: '🧱', bg: 'bg-slate-700 border-slate-600 text-slate-400 shadow-md' };
+                default:  return { emoji: '·',  bg: 'bg-slate-900/40 border-slate-800/50 text-slate-700' };
+            }
+        }
+
+        // Renderiza a matriz do mapa na tela
+// Substitua APENAS a função atualizarPainelVisual por esta aqui:
+        function atualizarPainelVisual(dados) {
+            const gridContainer = document.getElementById("arena-grid");
+            gridContainer.innerHTML = ""; // Limpa o mapa antigo
+
+            // Monta a grade quadrada varrendo a matriz do Java
+            dados.grade.forEach(linha => {
+                // MÁGICA DA CORREÇÃO: Se a linha veio como texto corrido (String), nós cortamos letra por letra
+                const celulas = typeof linha === 'string' ? linha.split('') : linha;
+                
+                celulas.forEach(celula => {
+                    const info = mapearItem(celula);
+                    const div = document.createElement("div");
+                    div.className = `tile flex items-center justify-center border text-base sm:text-lg font-bold rounded ${info.bg} transition-all duration-300 transform hover:scale-105`;
+                    div.innerText = info.emoji;
+                    gridContainer.appendChild(div);
+                });
+            });
+
+            // Atualiza os Logs na tela
+            if (dados.logs) {
+                logBox.innerText += "\n" + dados.logs;
+                logBox.scrollTop = logBox.scrollHeight; // Auto-scroll para baixo
+            }
+
+            // Monitor de status do jogo (Finalizado ou em combate)
+            const statusTag = document.getElementById("status-jogo");
+            const btnRodada = document.getElementById("btn-rodada");
+
+            if (dados.finalizado) {
+                statusTag.innerText = "👑 BATALHA ENCERRADA!";
+                statusTag.className = "px-4 py-2 bg-amber-950 text-amber-400 rounded-full text-sm font-bold border border-amber-700";
+                btnRodada.disabled = true;
+                btnRodada.className = "flex-1 bg-slate-700 text-slate-500 font-bold py-3 px-6 rounded-lg cursor-not-allowed uppercase tracking-wider text-sm";
+            } else {
+                statusTag.innerText = "⚔️ EM COMBATE";
+                statusTag.className = "px-4 py-2 bg-red-950 text-red-400 rounded-full text-sm font-bold border border-red-700 animate-pulse";
+                btnRodada.disabled = false;
+                btnRodada.className = "flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-lg transition-all shadow-md active:scale-95 cursor-pointer uppercase tracking-wider text-sm";
+            }
+        }
+
+        // Faz a chamada Ajax para a rota de Iniciar do seu Java
+        function iniciarJogo() {
+            logBox.innerText = "Invocando guerreiros e gerando o terreno via WFC...";
+            fetch(`${API_URL}/iniciar`)
+                .then(res => res.json())
+                .then(data => {
+                    logBox.innerText = "[SISTEMA]: " + data.logs;
+                    atualizarPainelVisual(data);
+                })
+                .catch(err => {
+                    logBox.innerText = "🚨 ERRO: Verifique se o seu IntelliJ/Spring Boot está rodando na porta 8080!";
+                    console.error(err);
+                });
+        }
+
+        // Faz a chamada Ajax para rodar um turno da IA
+        function proximaRodada() {
+            fetch(`${API_URL}/rodada`)
+                .then(res => res.json())
+                .then(data => {
+                    atualizarPainelVisual(data);
+                })
+                .catch(err => console.error(err));
+        }
+    </script>
+</body>
+</html>
